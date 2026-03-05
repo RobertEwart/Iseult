@@ -36,20 +36,24 @@ class FieldsPanel:
 #    return bx**2+by**2+bz**2
 #    """
     plot_param_dict = {'twoD': 0,
-                       'field_type': 0, #0 = B-Field, 1 = E-field, 2 Currents, 3 = UserDefined quantity
+                       'field_type': 0, #0 = B-Field, 1 = E-field, 2 Currents, 3 = UserDefined quantity, 4 = Gravitoelectric (ge), 5 = Gravitomagnetic (gb)
                        'cmdstr1': example,
                        'cmdstr2': example,
                        'cmdstr3': example,
                        'OneDOnly': [False, False, False],
-                       'yaxis_label': ['$B$','$E$','$J$','$B$'],
+                       'yaxis_label': ['$B$','$E$','$J$','$B$',r'$g_e$',r'$g_b$'],
                        '2D_label': [[r'$B_x$',r'$B_y$',r'$B_z$'],
                                     [r'$E_x$',r'$E_y$',r'$E_z$'],
                                     [r'$J_x$',r'$J_y$',r'$J_z$'],
-                                    [r'$B_\mathrm{tot}$',r'$B_\mathrm{tot}$',r'$B_\mathrm{tot}$']],
+                                    [r'$B_\mathrm{tot}$',r'$B_\mathrm{tot}$',r'$B_\mathrm{tot}$'],
+                                    [r'$g_{ex}$',r'$g_{ey}$',r'$g_{ez}$'],
+                                    [r'$g_{bx}$',r'$g_{by}$',r'$g_{bz}$']],
                        '1D_label': [[r'$B_x$',r'$B_y$',r'$B_z$'],
                                     [r'$E_x$',r'$E_y$',r'$E_z$'],
                                     [r'$J_x$',r'$J_y$',r'$J_z$'],
-                                    [r'$B_\mathrm{tot}$',r'$B_\mathrm{tot}$',r'$B_\mathrm{tot}$']],
+                                    [r'$B_\mathrm{tot}$',r'$B_\mathrm{tot}$',r'$B_\mathrm{tot}$'],
+                                    [r'$g_{ex}$',r'$g_{ey}$',r'$g_{ez}$'],
+                                    [r'$g_{bx}$',r'$g_{by}$',r'$g_{bz}$']],
                        'show_x' : 1,
                        'show_y' : 1,
                        'show_z' : 1,
@@ -134,6 +138,20 @@ class FieldsPanel:
             if self.GetPlotParam('show_z'):
                 self.arrs_needed.append('jz')
 
+        if self.GetPlotParam('field_type') == 4: # Load the gravitoelectric field
+            self.arrs_needed = ['c_omp', 'istep', 'gex']
+            if self.GetPlotParam('show_y'):
+                self.arrs_needed.append('gey')
+            if self.GetPlotParam('show_z'):
+                self.arrs_needed.append('gez')
+
+        if self.GetPlotParam('field_type') == 5: # Load the gravitomagnetic field
+            self.arrs_needed = ['c_omp', 'istep', 'gbx']
+            if self.GetPlotParam('show_y'):
+                self.arrs_needed.append('gby')
+            if self.GetPlotParam('show_z'):
+                self.arrs_needed.append('gbz')
+
         if self.GetPlotParam('field_type') == 3: # Check what the user wants.
             self.arrs_needed = ['c_omp', 'istep', 'bx']
             if self.GetPlotParam('show_x'):
@@ -189,6 +207,10 @@ class FieldsPanel:
                 self.xaxis_values = np.arange(self.FigWrap.LoadKey('ex').shape[2])/self.c_omp*self.istep
             elif self.GetPlotParam('field_type') ==2:
                 self.xaxis_values = np.arange(self.FigWrap.LoadKey('jx').shape[2])/self.c_omp*self.istep
+            elif self.GetPlotParam('field_type') ==4:
+                self.xaxis_values = np.arange(self.FigWrap.LoadKey('gex').shape[2])/self.c_omp*self.istep
+            elif self.GetPlotParam('field_type') ==5:
+                self.xaxis_values = np.arange(self.FigWrap.LoadKey('gbx').shape[2])/self.c_omp*self.istep
             self.parent.DataDict['xaxis_values'] = np.copy(self.xaxis_values)
 
         self.flagx = 0 # 0 means it didn't plot, 1 means it is 1D only, 2 means it returned a 3d object
@@ -250,6 +272,34 @@ class FieldsPanel:
 
             if self.GetPlotParam('show_z'):
                 self.fz = self.FigWrap.LoadKey('jz')
+                self.flagz = 2
+
+        elif self.GetPlotParam('field_type') == 4: # Load the gravitoelectric field
+
+            if self.GetPlotParam('show_x'):
+                self.fx = self.FigWrap.LoadKey('gex')
+                self.flagx = 2
+
+            if self.GetPlotParam('show_y'):
+                self.fy = self.FigWrap.LoadKey('gey')
+                self.flagy = 2
+
+            if self.GetPlotParam('show_z'):
+                self.fz = self.FigWrap.LoadKey('gez')
+                self.flagz = 2
+
+        elif self.GetPlotParam('field_type') == 5: # Load the gravitomagnetic field
+
+            if self.GetPlotParam('show_x'):
+                self.fx = self.FigWrap.LoadKey('gbx')
+                self.flagx = 2
+
+            if self.GetPlotParam('show_y'):
+                self.fy = self.FigWrap.LoadKey('gby')
+                self.flagy = 2
+
+            if self.GetPlotParam('show_z'):
+                self.fz = self.FigWrap.LoadKey('gbz')
                 self.flagz = 2
 
         elif self.GetPlotParam('field_type') == 3: # User Defined fields
@@ -1089,7 +1139,7 @@ class FieldSettings(Tk.Toplevel):
         cb.grid(row = 1, sticky = Tk.W)
 
         # the Radiobox Control to choose the Field Type
-        self.FieldList = ['B Field', 'E field', 'J [current]', 'User Defined']
+        self.FieldList = ['B Field', 'E field', 'J [current]', 'User Defined', 'Gravitoelectric (ge)', 'Gravitomagnetic (gb)']
         self.FieldTypeVar  = Tk.IntVar()
         self.FieldTypeVar.set(self.parent.GetPlotParam('field_type'))
 
