@@ -2004,6 +2004,16 @@ class MainApp(Tk.Tk):
 
         self.TotalElectricEnergy = np.array([])
 
+        self.TotalGravElectricEnergy = np.array([])
+        self.TotalGexEnergy = np.array([])
+        self.TotalGeyEnergy = np.array([])
+        self.TotalGezEnergy = np.array([])
+
+        self.TotalGravMagEnergy = np.array([])
+        self.TotalGbxEnergy = np.array([])
+        self.TotalGbyEnergy = np.array([])
+        self.TotalGbzEnergy = np.array([])
+
         # figure out all keys that have 'Prtl'
         # now we have to go through the data dictionary and remove the particle info
         for DataDict in self.ListOfDataDict:
@@ -2501,6 +2511,16 @@ class MainApp(Tk.Tk):
             self.TotalEzEnergy = np.array([])
             self.TotalElectricEnergy = np.array([])
 
+            self.TotalGravElectricEnergy = np.array([])
+            self.TotalGexEnergy = np.array([])
+            self.TotalGeyEnergy = np.array([])
+            self.TotalGezEnergy = np.array([])
+
+            self.TotalGravMagEnergy = np.array([])
+            self.TotalGbxEnergy = np.array([])
+            self.TotalGbyEnergy = np.array([])
+            self.TotalGbzEnergy = np.array([])
+
 
             # Make a list of timesteps we have already loaded.
             self.timestep_visited = []
@@ -2521,7 +2541,7 @@ class MainApp(Tk.Tk):
 
         if not self.TimeStep.value in self.TotalEnergyTimeSteps:
             if self.showing_total_energy_plt:
-                tmp_L = ['ui', 'vi', 'wi', 'ue', 've', 'we', 'mi', 'me', 'stride', 'bx', 'by', 'bz', 'ex', 'ey', 'ez','qi','c']
+                tmp_L = ['ui', 'vi', 'wi', 'ue', 've', 'we', 'mi', 'me', 'stride', 'bx', 'by', 'bz', 'ex', 'ey', 'ez', 'gex', 'gey', 'gez', 'gbx', 'gby', 'gbz', 'qi', 'c']
                 for elm in tmp_L:
                     self.ToLoad[self.H5KeyDict[elm]].append(elm)
 
@@ -2679,6 +2699,24 @@ class MainApp(Tk.Tk):
                 self.TotalEzEnergy = np.append(np.append(self.TotalEzEnergy[0:ind],EzEnergy), self.TotalEzEnergy[ind:])
                 self.TotalElectricEnergy = self.TotalExEnergy + self.TotalEyEnergy + self.TotalEzEnergy
 
+                GexEnergy = np.sum(self.DataDict['gex'][:,:,:]*self.DataDict['gex'][:,:,:]) * self.DataDict['istep']**2*.5
+                GeyEnergy = np.sum(self.DataDict['gey'][:,:,:]*self.DataDict['gey'][:,:,:]) * self.DataDict['istep']**2*.5
+                GezEnergy = np.sum(self.DataDict['gez'][:,:,:]*self.DataDict['gez'][:,:,:]) * self.DataDict['istep']**2*.5
+
+                GbxEnergy = np.sum(self.DataDict['gbx'][:,:,:]*self.DataDict['gbx'][:,:,:]) * self.DataDict['istep']**2*.5
+                GbyEnergy = np.sum(self.DataDict['gby'][:,:,:]*self.DataDict['gby'][:,:,:]) * self.DataDict['istep']**2*.5
+                GbzEnergy = np.sum(self.DataDict['gbz'][:,:,:]*self.DataDict['gbz'][:,:,:]) * self.DataDict['istep']**2*.5
+
+                self.TotalGexEnergy = np.append(np.append(self.TotalGexEnergy[0:ind],GexEnergy), self.TotalGexEnergy[ind:])
+                self.TotalGeyEnergy = np.append(np.append(self.TotalGeyEnergy[0:ind],GeyEnergy), self.TotalGeyEnergy[ind:])
+                self.TotalGezEnergy = np.append(np.append(self.TotalGezEnergy[0:ind],GezEnergy), self.TotalGezEnergy[ind:])
+                self.TotalGravElectricEnergy = self.TotalGexEnergy + self.TotalGeyEnergy + self.TotalGezEnergy
+
+                self.TotalGbxEnergy = np.append(np.append(self.TotalGbxEnergy[0:ind],GbxEnergy), self.TotalGbxEnergy[ind:])
+                self.TotalGbyEnergy = np.append(np.append(self.TotalGbyEnergy[0:ind],GbyEnergy), self.TotalGbyEnergy[ind:])
+                self.TotalGbzEnergy = np.append(np.append(self.TotalGbzEnergy[0:ind],GbzEnergy), self.TotalGbzEnergy[ind:])
+                self.TotalGravMagEnergy = self.TotalGbxEnergy + self.TotalGbyEnergy + self.TotalGbzEnergy
+
         if self.MainParamDict['ConstantShockVel']:
             # We can just calculate the time * self.shock_speed
             if np.isnan(self.prev_shock_loc):
@@ -2761,6 +2799,14 @@ class MainApp(Tk.Tk):
                 self.TotalEyEnergy = np.append(self.TotalEyEnergy[0:ind], self.TotalEyEnergy[ind+1:])
                 self.TotalExEnergy = np.append(self.TotalExEnergy[0:ind], self.TotalExEnergy[ind+1:])
                 self.TotalElectricEnergy = np.append(self.TotalElectricEnergy[0:ind], self.TotalElectricEnergy[ind+1:])
+                self.TotalGexEnergy = np.append(self.TotalGexEnergy[0:ind], self.TotalGexEnergy[ind+1:])
+                self.TotalGeyEnergy = np.append(self.TotalGeyEnergy[0:ind], self.TotalGeyEnergy[ind+1:])
+                self.TotalGezEnergy = np.append(self.TotalGezEnergy[0:ind], self.TotalGezEnergy[ind+1:])
+                self.TotalGravElectricEnergy = np.append(self.TotalGravElectricEnergy[0:ind], self.TotalGravElectricEnergy[ind+1:])
+                self.TotalGbxEnergy = np.append(self.TotalGbxEnergy[0:ind], self.TotalGbxEnergy[ind+1:])
+                self.TotalGbyEnergy = np.append(self.TotalGbyEnergy[0:ind], self.TotalGbyEnergy[ind+1:])
+                self.TotalGbzEnergy = np.append(self.TotalGbzEnergy[0:ind], self.TotalGbzEnergy[ind+1:])
+                self.TotalGravMagEnergy = np.append(self.TotalGravMagEnergy[0:ind], self.TotalGravMagEnergy[ind+1:])
             else:
                 self.TotalEnergyTimes = self.TotalEnergyTimes[0:ind]
                 self.TotalElectronEnergy = self.TotalElectronEnergy[0:ind]
@@ -2773,6 +2819,14 @@ class MainApp(Tk.Tk):
                 self.TotalEyEnergy = self.TotalEyEnergy[0:ind]
                 self.TotalEzEnergy = self.TotalEzEnergy[0:ind]
                 self.TotalElectricEnergy = self.TotalElectricEnergy[0:ind]
+                self.TotalGexEnergy = self.TotalGexEnergy[0:ind]
+                self.TotalGeyEnergy = self.TotalGeyEnergy[0:ind]
+                self.TotalGezEnergy = self.TotalGezEnergy[0:ind]
+                self.TotalGravElectricEnergy = self.TotalGravElectricEnergy[0:ind]
+                self.TotalGbxEnergy = self.TotalGbxEnergy[0:ind]
+                self.TotalGbyEnergy = self.TotalGbyEnergy[0:ind]
+                self.TotalGbzEnergy = self.TotalGbzEnergy[0:ind]
+                self.TotalGravMagEnergy = self.TotalGravMagEnergy[0:ind]
 
     def MakePrevCtypeList(self):
         self.prev_ctype_list = []

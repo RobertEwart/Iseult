@@ -30,6 +30,14 @@ class TotEnergyPanel:
                        'show_Bz_energy': False,
                        'show_B_E': False,
                        'show_E_E': False,
+                       'show_grav_e_E': False,
+                       'show_grav_b_E': False,
+                       'show_Gex_energy': False,
+                       'show_Gey_energy': False,
+                       'show_Gez_energy': False,
+                       'show_Gbx_energy': False,
+                       'show_Gby_energy': False,
+                       'show_Gbz_energy': False,
                        'y_min': 0,
                        'y_max' : 10,
                        'set_y_min': False,
@@ -130,6 +138,32 @@ class TotEnergyPanel:
                                          ls= ':', marker = 'o', markeredgecolor = self.fieldcolor,
                                          color = self.fieldcolor, visible = self.GetPlotParam('show_field_E'))
 
+        self.Gex_plot = self.axes.plot(self.parent.TotalEnergyTimes, self.parent.TotalGexEnergy,
+                                            ls= ':', marker = '1', markeredgecolor = 'purple',
+                                            color = 'purple', visible = self.GetPlotParam('show_Gex_energy'))
+        self.Gey_plot = self.axes.plot(self.parent.TotalEnergyTimes, self.parent.TotalGeyEnergy,
+                                            ls= ':', marker = '2', markeredgecolor = 'purple',
+                                            color = 'purple', visible = self.GetPlotParam('show_Gey_energy'))
+        self.Gez_plot = self.axes.plot(self.parent.TotalEnergyTimes, self.parent.TotalGezEnergy,
+                                            ls= ':', marker = '3', markeredgecolor = 'purple',
+                                            color = 'purple', visible = self.GetPlotParam('show_Gez_energy'))
+        self.grav_e_plot = self.axes.plot(self.parent.TotalEnergyTimes, self.parent.TotalGravElectricEnergy,
+                                          ls= ':', marker = 's', markeredgecolor = 'purple',
+                                          color = 'purple', visible = self.GetPlotParam('show_grav_e_E'))
+
+        self.Gbx_plot = self.axes.plot(self.parent.TotalEnergyTimes, self.parent.TotalGbxEnergy,
+                                            ls= ':', marker = '4', markeredgecolor = 'darkviolet',
+                                            color = 'darkviolet', visible = self.GetPlotParam('show_Gbx_energy'))
+        self.Gby_plot = self.axes.plot(self.parent.TotalEnergyTimes, self.parent.TotalGbyEnergy,
+                                            ls= ':', marker = 'h', markeredgecolor = 'darkviolet',
+                                            color = 'darkviolet', visible = self.GetPlotParam('show_Gby_energy'))
+        self.Gbz_plot = self.axes.plot(self.parent.TotalEnergyTimes, self.parent.TotalGbzEnergy,
+                                            ls= ':', marker = 'X', markeredgecolor = 'darkviolet',
+                                            color = 'darkviolet', visible = self.GetPlotParam('show_Gbz_energy'))
+        self.grav_b_plot = self.axes.plot(self.parent.TotalEnergyTimes, self.parent.TotalGravMagEnergy,
+                                          ls= ':', marker = '*', markersize = 10, markeredgecolor = 'darkviolet',
+                                          color = 'darkviolet', visible = self.GetPlotParam('show_grav_b_E'))
+
         self.total_plot = self.axes.plot(self.parent.TotalEnergyTimes, self.parent.TotalMagEnergy + self.parent.TotalElectricEnergy + self.parent.TotalElectronEnergy + self.parent.TotalIonEnergy,
                                          ls= ':', marker = 'x', markeredgecolor = self.totalcolor,
                                          color = self.totalcolor, visible = self.GetPlotParam('show_total_E'))
@@ -155,13 +189,19 @@ class TotEnergyPanel:
         # only based on visible lines
         self.key_list = ['show_total_E', 'show_prtl_KE', 'show_ion_E', 'show_electron_E', 'show_field_E', 'show_E_E',
                                 'show_B_E', 'show_Bx_energy', 'show_By_energy', 'show_Bz_energy',
-                                'show_Ex_energy', 'show_Ey_energy', 'show_Ez_energy']
+                                'show_Ex_energy', 'show_Ey_energy', 'show_Ez_energy',
+                                'show_grav_e_E', 'show_Gex_energy', 'show_Gey_energy', 'show_Gez_energy',
+                                'show_grav_b_E', 'show_Gbx_energy', 'show_Gby_energy', 'show_Gbz_energy']
         self.plot_list = [self.total_plot[0], self.prtl_plot[0], self.ion_plot[0], self.electron_plot[0], self.field_plot[0],
                                 self.e_plot[0], self.mag_plot[0],
                                 self.Bx_plot[0], self.By_plot[0], self.Bz_plot[0],
-                                self.Ex_plot[0], self.Ey_plot[0], self.Ez_plot[0]]
+                                self.Ex_plot[0], self.Ey_plot[0], self.Ez_plot[0],
+                                self.grav_e_plot[0], self.Gex_plot[0], self.Gey_plot[0], self.Gez_plot[0],
+                                self.grav_b_plot[0], self.Gbx_plot[0], self.Gby_plot[0], self.Gbz_plot[0]]
         self.label_names = ['Prtl+Field', 'Particles', 'Ions', 'Electrons', 'EM Field', 'Electric Field', 'Magnetic Field',
-                            r'$B_x^2$', r'$B_y^2$', r'$B_z^2$', r'$E_x^2$', r'$E_y^2$', r'$E_z^2$']
+                            r'$B_x^2$', r'$B_y^2$', r'$B_z^2$', r'$E_x^2$', r'$E_y^2$', r'$E_z^2$',
+                            r'Grav. Electric', r'$g_{ex}^2$', r'$g_{ey}^2$', r'$g_{ez}^2$',
+                            r'Grav. Magnetic', r'$g_{bx}^2$', r'$g_{by}^2$', r'$g_{bz}^2$']
         xmin_max = [np.inf, -np.inf]
         ymin_max = [np.inf, -np.inf]
         for i in range(len(self.plot_list)):
@@ -247,6 +287,14 @@ class TotEnergyPanel:
         self.Ex_plot[0].set_data(self.parent.TotalEnergyTimes, self.parent.TotalExEnergy)
         self.Ey_plot[0].set_data(self.parent.TotalEnergyTimes, self.parent.TotalEyEnergy)
         self.Ez_plot[0].set_data(self.parent.TotalEnergyTimes, self.parent.TotalEzEnergy)
+        self.grav_e_plot[0].set_data(self.parent.TotalEnergyTimes, self.parent.TotalGravElectricEnergy)
+        self.Gex_plot[0].set_data(self.parent.TotalEnergyTimes, self.parent.TotalGexEnergy)
+        self.Gey_plot[0].set_data(self.parent.TotalEnergyTimes, self.parent.TotalGeyEnergy)
+        self.Gez_plot[0].set_data(self.parent.TotalEnergyTimes, self.parent.TotalGezEnergy)
+        self.grav_b_plot[0].set_data(self.parent.TotalEnergyTimes, self.parent.TotalGravMagEnergy)
+        self.Gbx_plot[0].set_data(self.parent.TotalEnergyTimes, self.parent.TotalGbxEnergy)
+        self.Gby_plot[0].set_data(self.parent.TotalEnergyTimes, self.parent.TotalGbyEnergy)
+        self.Gbz_plot[0].set_data(self.parent.TotalEnergyTimes, self.parent.TotalGbzEnergy)
 
         self.cur_time.set_xdata([self.time,self.time])
         # fancy code to make sure that matplotlib sets its limits
@@ -480,6 +528,65 @@ class TotEnergySettings(Tk.Toplevel):
             command = self.Selector)
         cb.grid(row = 10, column = 2, columnspan =1, sticky = Tk.W)
 
+        ttk.Label(frm, text='Show Grav. Energy:').grid(row = 11, column = 0, sticky = Tk.W, columnspan=2)
+        ttk.Label(frm, text='Show Grav. Mag. Energy:').grid(row = 11, column = 2, sticky = Tk.W, columnspan=2)
+
+        self.ShowGravEVar = Tk.IntVar(self)
+        self.ShowGravEVar.set(self.parent.GetPlotParam('show_grav_e_E'))
+        cb = ttk.Checkbutton(frm, text = "Total Grav. Electric",
+            variable = self.ShowGravEVar,
+            command = self.Selector)
+        cb.grid(row = 12, column = 0, columnspan=2, sticky = Tk.W)
+
+        self.ShowGexVar = Tk.IntVar(self)
+        self.ShowGexVar.set(self.parent.GetPlotParam('show_Gex_energy'))
+        cb = ttk.Checkbutton(frm, text = "ge_x*ge_x",
+            variable = self.ShowGexVar,
+            command = self.Selector)
+        cb.grid(row = 13, column = 0, sticky = Tk.W)
+
+        self.ShowGeyVar = Tk.IntVar(self)
+        self.ShowGeyVar.set(self.parent.GetPlotParam('show_Gey_energy'))
+        cb = ttk.Checkbutton(frm, text = "ge_y*ge_y",
+            variable = self.ShowGeyVar,
+            command = self.Selector)
+        cb.grid(row = 14, column = 0, sticky = Tk.W)
+
+        self.ShowGezVar = Tk.IntVar(self)
+        self.ShowGezVar.set(self.parent.GetPlotParam('show_Gez_energy'))
+        cb = ttk.Checkbutton(frm, text = "ge_z*ge_z",
+            variable = self.ShowGezVar,
+            command = self.Selector)
+        cb.grid(row = 15, column = 0, sticky = Tk.W)
+
+        self.ShowGravBVar = Tk.IntVar(self)
+        self.ShowGravBVar.set(self.parent.GetPlotParam('show_grav_b_E'))
+        cb = ttk.Checkbutton(frm, text = "Total Grav. Magnetic",
+            variable = self.ShowGravBVar,
+            command = self.Selector)
+        cb.grid(row = 12, column = 2, columnspan=2, sticky = Tk.W)
+
+        self.ShowGbxVar = Tk.IntVar(self)
+        self.ShowGbxVar.set(self.parent.GetPlotParam('show_Gbx_energy'))
+        cb = ttk.Checkbutton(frm, text = "gb_x*gb_x",
+            variable = self.ShowGbxVar,
+            command = self.Selector)
+        cb.grid(row = 13, column = 2, sticky = Tk.W)
+
+        self.ShowGbyVar = Tk.IntVar(self)
+        self.ShowGbyVar.set(self.parent.GetPlotParam('show_Gby_energy'))
+        cb = ttk.Checkbutton(frm, text = "gb_y*gb_y",
+            variable = self.ShowGbyVar,
+            command = self.Selector)
+        cb.grid(row = 14, column = 2, sticky = Tk.W)
+
+        self.ShowGbzVar = Tk.IntVar(self)
+        self.ShowGbzVar.set(self.parent.GetPlotParam('show_Gbz_energy'))
+        cb = ttk.Checkbutton(frm, text = "gb_z*gb_z",
+            variable = self.ShowGbzVar,
+            command = self.Selector)
+        cb.grid(row = 15, column = 2, sticky = Tk.W)
+
         # Now the x & y lim
         self.setZminVar = Tk.IntVar()
         self.setZminVar.set(self.parent.GetPlotParam('set_y_min'))
@@ -639,7 +746,9 @@ class TotEnergySettings(Tk.Toplevel):
         # self.parent.plot_list = [self.prtl_plot[0], self.ion_plot[0], self.electron_plot[0], self.field_plot[0], self.e_plot[0], self.mag_plot[0]]
         # self.parent.label_names = ['Particles', 'Ions', 'Electrons', 'EM Field', 'Electric Field', 'Magnetic Field']
         VarList = [self.ShowTotalVar, self.ShowPrtlVar,  self.ShowIonVar, self.ShowElectronVar, self.ShowFieldVar, self.ShowEVar, self.ShowMagVar,
-                self.ShowBxVar, self.ShowByVar , self.ShowBzVar, self.ShowExVar, self.ShowEyVar, self.ShowEzVar]
+                self.ShowBxVar, self.ShowByVar , self.ShowBzVar, self.ShowExVar, self.ShowEyVar, self.ShowEzVar,
+                self.ShowGravEVar, self.ShowGexVar, self.ShowGeyVar, self.ShowGezVar,
+                self.ShowGravBVar, self.ShowGbxVar, self.ShowGbyVar, self.ShowGbzVar]
 
         # Update current legend position
         if self.parent.legend._get_loc() != 1:
