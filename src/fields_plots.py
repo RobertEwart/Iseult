@@ -1195,7 +1195,7 @@ class FieldSettings(Tk.Toplevel):
         cb = ttk.Checkbutton(self.frm, text = "Show Color bar",
                         variable = self.CbarVar,
                         command = self.CbarHandler)
-        cb.grid(row = 7, sticky = Tk.W)
+        cb.grid(row = 9, sticky = Tk.W)
 
         # Control whether or not diverging cmap is used
         self.DivVar = Tk.IntVar()
@@ -1203,7 +1203,7 @@ class FieldSettings(Tk.Toplevel):
         cb = ttk.Checkbutton(self.frm, text = "Use Diverging Cmap",
                         variable = self.DivVar,
                         command = self.DivHandler)
-        cb.grid(row = 8, sticky = Tk.W)
+        cb.grid(row = 10, sticky = Tk.W)
 
         # Use full div cmap
         self.StretchVar = Tk.IntVar()
@@ -1211,7 +1211,7 @@ class FieldSettings(Tk.Toplevel):
         cb = ttk.Checkbutton(self.frm, text = "Symmetric about zero",
                         variable = self.StretchVar,
                         command = self.StretchHandler)
-        cb.grid(row = 8, column = 1, sticky = Tk.W)
+        cb.grid(row = 10, column = 1, sticky = Tk.W)
 
         # Create the OptionMenu to chooses the cnorm_type:
         self.cnormvar = Tk.StringVar(self)
@@ -1225,12 +1225,12 @@ class FieldSettings(Tk.Toplevel):
         # Now the gamma of the pow norm
         self.powGamma = Tk.StringVar()
         self.powGamma.set(str(self.parent.GetPlotParam('cpow_num')))
-        ttk.Label(self.frm, text ='gamma =').grid(row = 7, column = 3, sticky =Tk.E)
-        ttk.Label(self.frm, text ='If cnorm is Pow =>').grid(row = 8, column = 3,columnspan = 2, sticky =Tk.N)
-        ttk.Label(self.frm, text ='sign(data)*|data|**gamma').grid(row = 9, column = 3,columnspan = 2, sticky =Tk.E)
+        ttk.Label(self.frm, text ='gamma =').grid(row = 9, column = 3, sticky =Tk.E)
+        ttk.Label(self.frm, text ='If cnorm is Pow =>').grid(row = 10, column = 3,columnspan = 2, sticky =Tk.N)
+        ttk.Label(self.frm, text ='sign(data)*|data|**gamma').grid(row = 11, column = 3,columnspan = 2, sticky =Tk.E)
 
         self.GammaEnter = ttk.Entry(self.frm, textvariable=self.powGamma, width=7)
-        self.GammaEnter.grid(row = 7, column = 4)
+        self.GammaEnter.grid(row = 9, column = 4)
 
 
 
@@ -1270,30 +1270,30 @@ class FieldSettings(Tk.Toplevel):
         cb = ttk.Checkbutton(self.frm, text = "Show Shock",
                         variable = self.ShockVar,
                         command = self.ShockVarHandler)
-        cb.grid(row = 9, column = 1, sticky = Tk.W)
+        cb.grid(row = 11, column = 1, sticky = Tk.W)
 
         self.FFTVar = Tk.IntVar()
         self.FFTVar.set(self.parent.GetPlotParam('show_FFT_region'))
         cb = ttk.Checkbutton(self.frm, text = "Show FFT Region",
                         variable = self.FFTVar,
                         command = self.FFTVarHandler)
-        cb.grid(row = 9, column = 0, sticky = Tk.W)
+        cb.grid(row = 11, column = 0, sticky = Tk.W)
 
         self.CPUVar = Tk.IntVar()
         self.CPUVar.set(self.parent.GetPlotParam('show_cpu_domains'))
         cb = ttk.Checkbutton(self.frm, text = "Show CPU domains",
                         variable = self.CPUVar,
                         command = self.CPUVarHandler)
-        cb.grid(row = 10, column = 0, sticky = Tk.W)
+        cb.grid(row = 12, column = 0, sticky = Tk.W)
 
         self.NormFieldVar = Tk.IntVar()
         self.NormFieldVar.set(self.parent.GetPlotParam('normalize_fields'))
         cb = ttk.Checkbutton(self.frm, text = "Normalize Fields",
                         variable = self.NormFieldVar,
                         command = self.NormFieldHandler)
-        cb.grid(row = 7, column = 1, sticky = Tk.W)
+        cb.grid(row = 9, column = 1, sticky = Tk.W)
 
-        streamlines.add_streamline_buttons(self, self.parent, starting_row=11)
+        streamlines.add_streamline_buttons(self, self.parent, starting_row=13)
 
     def CbarHandler(self, *args):
         if self.parent.GetPlotParam('show_cbar')== self.CbarVar.get():
