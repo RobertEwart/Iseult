@@ -1702,17 +1702,19 @@ class UserDefSettings(Tk.Toplevel):
         self.subplot.SetPlotParam('cmdstr'+str(self.fnum), tmpstr, update_plot=False)
 
         ### THIS IS SLOPPY!
-        self.subplot.SetPlotParam('yaxis_label',self.subplot.GetPlotParam('yaxis_label')[0:3]+ [self.ylabel.get()], update_plot =False)
+        self.subplot.SetPlotParam('yaxis_label',self.subplot.GetPlotParam('yaxis_label')[0:3]+ [self.ylabel.get()] + self.subplot.GetPlotParam('yaxis_label')[4:], update_plot =False)
         tmplist = list(self.subplot.GetPlotParam('2D_label')[3])
         tmplist[self.fnum-1] = self.twoDlabel.get()
         tmplist2 = list(self.subplot.GetPlotParam('2D_label')[0:3])
         tmplist2.append(tmplist)
+        tmplist2 += list(self.subplot.GetPlotParam('2D_label')[4:])
         self.subplot.SetPlotParam('2D_label',tmplist2, update_plot =False)
 
         tmplist = self.subplot.GetPlotParam('1D_label')[3]
         tmplist[self.fnum-1] = self.oneDlabel.get()
         tmplist2 = list(self.subplot.GetPlotParam('1D_label')[0:3])
         tmplist2.append(tmplist)
+        tmplist2 += list(self.subplot.GetPlotParam('1D_label')[4:])
 
         self.subplot.SetPlotParam('1D_label',tmplist2, update_plot =False)
         if not self.subplot.GetPlotParam('twoD'):
