@@ -597,10 +597,14 @@ class FieldsPanel:
             self.axes.add_artist(self.cax)
             self.anntext =''
             if self.plotFlag >= 0:
-                self.anntext = self.GetPlotParam('2D_label')[self.GetPlotParam('field_type')][self.plotFlag]
-                if self.GetPlotParam('field_type') ==0  and self.GetPlotParam('normalize_fields'):
+                ft = self.GetPlotParam('field_type')
+                labels_2d = self.GetPlotParam('2D_label')
+                if ft >= len(labels_2d):
+                    labels_2d = FieldsPanel.plot_param_dict['2D_label']
+                self.anntext = labels_2d[ft][self.plotFlag]
+                if ft ==0  and self.GetPlotParam('normalize_fields'):
                     self.anntext +=r'$/B_0$'
-                if self.GetPlotParam('field_type') ==1  and self.GetPlotParam('normalize_fields'):
+                if ft ==1  and self.GetPlotParam('normalize_fields'):
                     self.anntext +=r'$/E_0$'
 
             self.TwoDan = self.axes.annotate(self.anntext,
@@ -713,7 +717,11 @@ class FieldsPanel:
                 self.linex = self.axes.plot(np.arange(10), np.arange(10), color = self.xcolor)
                 self.linex[0].set_visible(False)
 
-            self.anx = self.axes.annotate(self.GetPlotParam('1D_label')[self.GetPlotParam('field_type')][0], xy = self.annotate_pos,
+            _ft = self.GetPlotParam('field_type')
+            _labels_1d = self.GetPlotParam('1D_label')
+            if _ft >= len(_labels_1d):
+                _labels_1d = FieldsPanel.plot_param_dict['1D_label']
+            self.anx = self.axes.annotate(_labels_1d[_ft][0], xy = self.annotate_pos,
                             xycoords = 'axes fraction',
                             color = self.xcolor,
                             **self.annotate_kwargs)
@@ -721,7 +729,7 @@ class FieldsPanel:
 
             self.annotate_pos[0] += .08
             if self.flagy >0 and self.GetPlotParam('show_y'):
-                if self.flagy == 1 and len(self.flagy.shape) == 1:
+                if self.flagy == 1 and len(self.fy.shape) == 1:
                     self.liney = self.axes.plot(self.xaxis_values, self.fy, color = self.ycolor)
                 elif self.parent.MainParamDict['Average1D']:
                     self.liney = self.axes.plot(self.xaxis_values, np.average(self.fy.reshape(-1,self.fy.shape[-1]), axis = 0), color = self.ycolor)
@@ -734,7 +742,7 @@ class FieldsPanel:
                 self.liney = self.axes.plot(np.arange(10), np.arange(10), color = self.ycolor)
                 self.liney[0].set_visible(False)
 
-            self.any =self.axes.annotate(self.GetPlotParam('1D_label')[self.GetPlotParam('field_type')][1], xy = self.annotate_pos,
+            self.any =self.axes.annotate(_labels_1d[_ft][1], xy = self.annotate_pos,
                             xycoords= 'axes fraction',
                             color = self.ycolor,
                             **self.annotate_kwargs)
@@ -743,7 +751,7 @@ class FieldsPanel:
             self.annotate_pos[0] += .08
 
             if self.flagz and self.GetPlotParam('show_z'):
-                if self.flagx == 1 and len(self.fz.shape) == 1:
+                if self.flagz == 1 and len(self.fz.shape) == 1:
                     self.linez = self.axes.plot(self.xaxis_values, self.fz, color = self.zcolor)
                 if self.parent.MainParamDict['Average1D']:
                     self.linez = self.axes.plot(self.xaxis_values, np.average(self.fz.reshape(-1,self.fz.shape[-1]), axis = 0), color = self.zcolor)
@@ -768,7 +776,7 @@ class FieldsPanel:
                     min_max = [-tmp, tmp]
             self.axes.set_ylim(min_max)
 
-            self.anz = self.axes.annotate(self.GetPlotParam('1D_label')[self.GetPlotParam('field_type')][2], xy = self.annotate_pos,
+            self.anz = self.axes.annotate(_labels_1d[_ft][2], xy = self.annotate_pos,
                                 xycoords= 'axes fraction',
                                 color = self.zcolor,
                                 **self.annotate_kwargs
@@ -990,10 +998,14 @@ class FieldsPanel:
 
             self.cax.set_extent([self.xmin, self.xmax, self.ymin, self.ymax])
             if self.plotFlag >= 0:
-                self.anntext = self.GetPlotParam('2D_label')[self.GetPlotParam('field_type')][self.plotFlag]
-                if self.GetPlotParam('field_type') ==0  and self.GetPlotParam('normalize_fields'):
+                _ft = self.GetPlotParam('field_type')
+                _labels_2d = self.GetPlotParam('2D_label')
+                if _ft >= len(_labels_2d):
+                    _labels_2d = FieldsPanel.plot_param_dict['2D_label']
+                self.anntext = _labels_2d[_ft][self.plotFlag]
+                if _ft ==0  and self.GetPlotParam('normalize_fields'):
                     self.anntext +=r'$/B_0$'
-                if self.GetPlotParam('field_type') ==1  and self.GetPlotParam('normalize_fields'):
+                if _ft ==1  and self.GetPlotParam('normalize_fields'):
                     self.anntext +=r'$/E_0$'
                 self.TwoDan.set_text(self.anntext)
             else:
@@ -1471,9 +1483,13 @@ class FieldSettings(Tk.Toplevel):
                 self.parent.axes.set_ylabel(tmplblstr, labelpad = self.parent.parent.MainParamDict['yLabelPad'], color = 'black', size = self.parent.parent.MainParamDict['AxLabelSize'])
 
 
-                self.parent.anx.set_text(self.parent.GetPlotParam('1D_label')[self.FieldTypeVar.get()][0])
-                self.parent.any.set_text(self.parent.GetPlotParam('1D_label')[self.FieldTypeVar.get()][1])
-                self.parent.anz.set_text(self.parent.GetPlotParam('1D_label')[self.FieldTypeVar.get()][2])
+                ft = self.FieldTypeVar.get()
+                labels_1d = self.parent.GetPlotParam('1D_label')
+                if ft >= len(labels_1d):
+                    labels_1d = FieldsPanel.plot_param_dict['1D_label']
+                self.parent.anx.set_text(labels_1d[ft][0])
+                self.parent.any.set_text(labels_1d[ft][1])
+                self.parent.anz.set_text(labels_1d[ft][2])
 
             ####
             #
@@ -1702,19 +1718,20 @@ class UserDefSettings(Tk.Toplevel):
         self.subplot.SetPlotParam('cmdstr'+str(self.fnum), tmpstr, update_plot=False)
 
         ### THIS IS SLOPPY!
-        self.subplot.SetPlotParam('yaxis_label',self.subplot.GetPlotParam('yaxis_label')[0:3]+ [self.ylabel.get()] + self.subplot.GetPlotParam('yaxis_label')[4:], update_plot =False)
+        _default = FieldsPanel.plot_param_dict
+        self.subplot.SetPlotParam('yaxis_label',self.subplot.GetPlotParam('yaxis_label')[0:3]+ [self.ylabel.get()] + _default['yaxis_label'][4:], update_plot =False)
         tmplist = list(self.subplot.GetPlotParam('2D_label')[3])
         tmplist[self.fnum-1] = self.twoDlabel.get()
         tmplist2 = list(self.subplot.GetPlotParam('2D_label')[0:3])
         tmplist2.append(tmplist)
-        tmplist2 += list(self.subplot.GetPlotParam('2D_label')[4:])
+        tmplist2 += list(_default['2D_label'][4:])
         self.subplot.SetPlotParam('2D_label',tmplist2, update_plot =False)
 
-        tmplist = self.subplot.GetPlotParam('1D_label')[3]
+        tmplist = list(self.subplot.GetPlotParam('1D_label')[3])
         tmplist[self.fnum-1] = self.oneDlabel.get()
         tmplist2 = list(self.subplot.GetPlotParam('1D_label')[0:3])
         tmplist2.append(tmplist)
-        tmplist2 += list(self.subplot.GetPlotParam('1D_label')[4:])
+        tmplist2 += list(_default['1D_label'][4:])
 
         self.subplot.SetPlotParam('1D_label',tmplist2, update_plot =False)
         if not self.subplot.GetPlotParam('twoD'):
