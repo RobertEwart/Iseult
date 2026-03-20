@@ -3550,7 +3550,7 @@ class MainApp(Tk.Tk):
         c_omp      = data_loading.load_dataset(filepath, 'c_omp')
 
         # Find out where the shock is at the last time step.
-        jstart = int(min(10*c_omp/istep, nxf0))
+        jstart = int(min(10*c_omp/istep, dens_arr.shape[1] - 1))
         # build the final x_axis of the plot
 
         xaxis_final = np.arange(dens_arr.shape[1])/c_omp*istep
