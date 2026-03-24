@@ -105,6 +105,7 @@ class SubPlotWrapper:
         self.figure = figure
         self.subplot_spec = subplot_spec
         self.pos = pos
+        self.row = pos[0] if pos is not None else 0
         self.graph = graph # The panel class-- e.g. PhasesPanel, FieldsPanel...etc
         self.Changedto1D = False # needed to keep track of color bars and views
         self.Changedto2D = False # needed to keep track of color bars and views
@@ -115,10 +116,19 @@ class SubPlotWrapper:
         must be defined in each of the subplot panel classes.'''
         return self.graph.set_plot_keys()
 
+    @property
+    def DataDict(self):
+        '''Returns the data dictionary for this subplot's simulation source.
+        Row 0 uses sim1 (DataDict), rows 1+ use sim2 (DataDict2).'''
+        if self.row == 0:
+            return self.parent.DataDict
+        else:
+            return self.parent.DataDict2
+
     def LoadKey(self, h5key):
         '''This is a function the graph should call to load a particular key
         stored in the Tristan outputfiles'''
-        return self.parent.DataDict[h5key]
+        return self.DataDict[h5key]
     def LoadData(self):
 
         ''' LoadData is called by MainApp, it is defined by the subplot panel
@@ -248,13 +258,15 @@ class SubPlotWrapper:
 
         # regardless if it is 1D or 2D we'll show the x_domains...
         # This could change if we decide to add the ability to show transverse 1D slices
+        cpu_x_locs = self.parent.cpu_x_locs2 if self.row > 0 else self.parent.cpu_x_locs
+        cpu_y_locs = self.parent.cpu_y_locs2 if self.row > 0 else self.parent.cpu_y_locs
         self.cpu_x_lines = []
         self.cpu_y_lines = []
-        for i in range(len(self.parent.cpu_x_locs)):
-            self.cpu_x_lines.append(self.graph.axes.axvline(self.parent.cpu_x_locs[i], linewidth = 1, linestyle = ':',color = 'w') )
+        for i in range(len(cpu_x_locs)):
+            self.cpu_x_lines.append(self.graph.axes.axvline(cpu_x_locs[i], linewidth = 1, linestyle = ':',color = 'w') )
         if self.GetPlotParam('twoD'):
-            for i in range(len(self.parent.cpu_y_locs)):
-                self.cpu_y_lines.append(self.graph.axes.axhline(self.parent.cpu_y_locs[i], linewidth = 1, linestyle = ':',color = 'w'))
+            for i in range(len(cpu_y_locs)):
+                self.cpu_y_lines.append(self.graph.axes.axhline(cpu_y_locs[i], linewidth = 1, linestyle = ':',color = 'w'))
 
     def UpdateCpuDomainLines(self):
         '''This updates the location of the Cpu lines. It should only be called
@@ -262,12 +274,14 @@ class SubPlotWrapper:
         created.'''
         # regardless if it is 1D or 2D we'll show the x_domains...
         # This could change if we decide to add the ability to show transverse 1D slices
+        cpu_x_locs = self.parent.cpu_x_locs2 if self.row > 0 else self.parent.cpu_x_locs
+        cpu_y_locs = self.parent.cpu_y_locs2 if self.row > 0 else self.parent.cpu_y_locs
         for i in range(len(self.cpu_x_lines)):
-            self.cpu_x_lines[i].set_xdata([self.parent.cpu_x_locs[i],self.parent.cpu_x_locs[i]])
+            self.cpu_x_lines[i].set_xdata([cpu_x_locs[i], cpu_x_locs[i]])
 
         if self.GetPlotParam('twoD'):
-            for i in range(len(self.parent.cpu_y_locs)):
-                self.cpu_y_lines[i].set_ydata([self.parent.cpu_y_locs[i],self.parent.cpu_y_locs[i]])
+            for i in range(len(self.cpu_y_lines)):
+                self.cpu_y_lines[i].set_ydata([cpu_y_locs[i], cpu_y_locs[i]])
 
 
     def RemoveCpuDomainLines(self):
@@ -1791,6 +1805,7 @@ class MainApp(Tk.Tk):
         self.presetMenu = Tk.Menu(menubar, tearoff=False, postcommand=self.ViewUpdate)
         menubar.add_cascade(label="File", underline=0, menu=fileMenu)
         fileMenu.add_command(label= 'Open Directory', command = self.OnOpen, accelerator='Command+o')
+        fileMenu.add_command(label= 'Open Second Directory (rows 2+)', command = self.OnOpenSecond)
 
         fileMenu.add_command(label="Exit", underline=1,
                              command=quit, accelerator="Ctrl+Q")
@@ -1808,6 +1823,15 @@ class MainApp(Tk.Tk):
 
         # The dictionary that holdsd the paths
         self.PathDict = {'Flds': [], 'Prtl': [], 'Param': [], 'Spect': []}
+        # Second simulation data source (for rows 1+)
+        self.PathDict2 = {'Flds': [], 'Prtl': [], 'Param': [], 'Spect': []}
+        self.DataDict2 = {}
+        self.cpu_x_locs2 = np.array([])
+        self.cpu_y_locs2 = np.array([])
+        self.NewDirectory2 = False
+        self.timestep_visited2 = []
+        self.timestep_queue2 = deque()
+        self.ListOfDataDict2 = []
 
         # A dictionary that allows use to see in what HDF5 file each key is stored.
         # i.e. {'ui': 'Prtl', 'ue': 'Flds', etc...},  Originally I generated the
@@ -1952,6 +1976,7 @@ class MainApp(Tk.Tk):
         if len(self.cmd_args.O[0])>0:
             self.dirname = os.path.join(self.dirname, self.cmd_args.O[0])
 
+        self.dirname2 = ''
         self.findDir()
 
 
@@ -2299,6 +2324,62 @@ class MainApp(Tk.Tk):
         else:
             self.ReDrawCanvas()
 
+    def OnOpenSecond(self, e=None):
+        """Open a second data directory whose data is shown in rows 2+"""
+        tmpdir = filedialog.askdirectory(
+            title='Choose the directory for the second output files (shown in rows 2+)',
+            **self.dir_opt)
+        if tmpdir != '':
+            self.dirname2 = tmpdir
+            if self.checkAndFindFilePaths2():
+                self.ReDrawCanvas()
+            else:
+                messagebox.showerror('Error', 'Could not find Tristan output files in the selected directory.')
+
+    def checkAndFindFilePaths2(self):
+        """Like checkAndFindFilePaths but for the second simulation directory."""
+        dirname2 = pathlib.Path(self.dirname2)
+        if (dirname2 / 'output').is_dir():
+            dirname2 /= 'output'
+
+        if len(list(dirname2.glob("param.*"))) > 0:
+            param_name = 'param'
+            spectra_name = 'spect'
+        elif len(list(dirname2.glob("params.*"))) > 0:
+            param_name = 'params'
+            spectra_name = 'spec'
+        else:
+            return False
+
+        def find_in_subdir2(file_glob, subdir):
+            file_list = list(dirname2.glob(file_glob))
+            if len(file_list) == 0:
+                file_list = list((dirname2 / subdir).glob(file_glob))
+            return file_list
+
+        param_files   = list(dirname2.glob(f"{param_name}.*"))
+        flds_files    = find_in_subdir2('flds.tot.*', 'flds')
+        prtl_files    = find_in_subdir2('prtl.tot.*', 'prtl')
+        spectra_files = find_in_subdir2(f'{spectra_name}.*', 'spec')
+        flds_files = [p for p in flds_files if not p.suffix == '.xdmf']
+
+        intersection = set.intersection(
+            set([f.suffix for f in param_files]),
+            set([f.suffix for f in flds_files]),
+            set([f.suffix for f in prtl_files]),
+            set([f.suffix for f in spectra_files]))
+
+        if len(intersection) == 0:
+            return False
+
+        self.PathDict2['Param'] = sorted([p for p in param_files   if p.suffix in intersection])
+        self.PathDict2['Flds']  = sorted([p for p in flds_files    if p.suffix in intersection])
+        self.PathDict2['Prtl']  = sorted([p for p in prtl_files    if p.suffix in intersection])
+        self.PathDict2['Spect'] = sorted([p for p in spectra_files if p.suffix in intersection])
+
+        self.NewDirectory2 = True
+        return True
+
     def ResetSession(self, e = None):
         """open a file"""
         if int(self.cmd_args.n) != -1:
@@ -2466,17 +2547,36 @@ class MainApp(Tk.Tk):
         self.ToLoad[self.H5KeyDict['dens']].append('dens')
         self.ToLoad[self.H5KeyDict['mx']].append('mx')
         self.ToLoad[self.H5KeyDict['my']].append('my')
-        # look at each subplot and see what is needed
-        for i in range(self.MainParamDict['NumOfRows']):
-            for j in range(self.MainParamDict['NumOfCols']):
-                # for each subplot, see what keys are needed
-                tmpList = self.SubPlotList[i][j].GetKeys()
+        # look at row 0 subplots for sim1 keys
+        for j in range(self.MainParamDict['NumOfCols']):
+            tmpList = self.SubPlotList[0][j].GetKeys()
+            for elm in tmpList:
+                ftype = self.H5KeyDict[elm]
+                self.ToLoad[ftype].append(elm)
+        # if no second sim, also collect keys from all other rows into sim1
+        if not self.PathDict2['Flds']:
+            for i in range(1, self.MainParamDict['NumOfRows']):
+                for j in range(self.MainParamDict['NumOfCols']):
+                    tmpList = self.SubPlotList[i][j].GetKeys()
+                    for elm in tmpList:
+                        ftype = self.H5KeyDict[elm]
+                        self.ToLoad[ftype].append(elm)
 
-                for elm in tmpList:
-                    # find out what type of file the key is stored in
-                    ftype = self.H5KeyDict[elm]
-                    # add the key to the list of that file type
-                    self.ToLoad[ftype].append(elm)
+        # Build ToLoad2 for rows 1+ (used when a second sim directory is set)
+        self.ToLoad2 = {'Flds': [], 'Prtl': [], 'Param': [], 'Spect': []}
+        if self.PathDict2['Flds']:
+            self.ToLoad2[self.H5KeyDict['time']].append('time')
+            self.ToLoad2[self.H5KeyDict['c_omp']].append('c_omp')
+            self.ToLoad2[self.H5KeyDict['istep']].append('istep')
+            self.ToLoad2[self.H5KeyDict['dens']].append('dens')
+            self.ToLoad2[self.H5KeyDict['mx']].append('mx')
+            self.ToLoad2[self.H5KeyDict['my']].append('my')
+            for i in range(1, self.MainParamDict['NumOfRows']):
+                for j in range(self.MainParamDict['NumOfCols']):
+                    tmpList = self.SubPlotList[i][j].GetKeys()
+                    for elm in tmpList:
+                        ftype = self.H5KeyDict[elm]
+                        self.ToLoad2[ftype].append(elm)
 
         # Check to make sure the 2DSlice is OK...
         # Grab c_omp & istep
@@ -2774,7 +2874,106 @@ class MainApp(Tk.Tk):
 
         self.cpu_x_locs = np.cumsum(self.DataDict['mx']-5)/self.DataDict['c_omp']
         self.cpu_y_locs = np.cumsum(self.DataDict['my']-5)/self.DataDict['c_omp']
-        # Now that the DataDict is created, iterate over all the subplots and
+
+        # Load sim2 data if a second directory is set
+        if self.PathDict2['Flds']:
+            ts2 = min(self.TimeStep.value, len(self.PathDict2['Flds'])) - 1
+
+            if self.NewDirectory2:
+                self.timestep_visited2 = []
+                self.timestep_queue2 = deque()
+                self.ListOfDataDict2 = []
+                self.NewDirectory2 = False
+
+            # Helper to get sim2 bx shape for mx/my fallback
+            def _get_bx_shape2():
+                return data_loading.load_dataset(self.PathDict2['Flds'][ts2], 'bx').shape
+
+            def _load_key_sim2(pkey, elm):
+                filepath2 = self.PathDict2[pkey][ts2]
+                try:
+                    return data_loading.load_dataset(filepath2, elm)
+                except KeyError:
+                    if elm == 'sizex':
+                        return 1
+                    elif elm == 'c':
+                        return 0.45
+                    elif elm == 'ppc0':
+                        return np.nan
+                    elif elm == 'my':
+                        istep2 = data_loading.load_dataset(self.PathDict2['Param'][ts2], 'istep', slice(0,1))
+                        my0_2  = data_loading.load_dataset(self.PathDict2['Param'][ts2], 'my0',  slice(0,1))
+                        maxYInd2 = _get_bx_shape2()[1] - 1
+                        tmpSize = ((maxYInd2+1)*istep2)//(my0_2-5)
+                        return np.ones(tmpSize)*my0_2
+                    elif elm == 'mx':
+                        istep2 = data_loading.load_dataset(self.PathDict2['Param'][ts2], 'istep', slice(0,1))
+                        mx0_2  = data_loading.load_dataset(self.PathDict2['Param'][ts2], 'mx0',  slice(0,1))
+                        maxXInd2 = _get_bx_shape2()[2] - 1
+                        tmpSize = ((maxXInd2+1)*istep2)//(mx0_2-5)
+                        return np.ones(tmpSize)*mx0_2
+                    else:
+                        raise
+
+            if self.TimeStep.value in self.timestep_visited2:
+                cur_ind2 = self.timestep_visited2.index(self.TimeStep.value)
+                self.timestep_queue2.remove(self.TimeStep.value)
+                self.DataDict2 = self.ListOfDataDict2[cur_ind2]
+                # load any missing keys
+                for pkey in self.ToLoad2.keys():
+                    tmplist = list(set(self.ToLoad2[pkey]))
+                    tmplist = [k for k in tmplist if k not in self.DataDict2]
+                    filepath2 = self.PathDict2[pkey][ts2]
+                    if tmplist:
+                        if pkey == 'Prtl':
+                            for elm in tmplist:
+                                self.DataDict2[elm] = data_loading.load_dataset(filepath2, elm, slice(None, None, self.MainParamDict['PrtlStride']))
+                        else:
+                            for elm in tmplist:
+                                self.DataDict2[elm] = _load_key_sim2(pkey, elm)
+                self.timestep_queue2.append(self.TimeStep.value)
+            else:
+                self.DataDict2 = {}
+                for pkey in self.ToLoad2.keys():
+                    tmplist = list(set(self.ToLoad2[pkey]))
+                    filepath2 = self.PathDict2[pkey][ts2]
+                    if tmplist:
+                        if pkey == 'Prtl':
+                            for elm in tmplist:
+                                self.DataDict2[elm] = data_loading.load_dataset(filepath2, elm, slice(None, None, self.MainParamDict['PrtlStride']))
+                        else:
+                            for elm in tmplist:
+                                self.DataDict2[elm] = _load_key_sim2(pkey, elm)
+                if len(self.timestep_visited2) > 30:
+                    oldest2 = self.timestep_queue2.popleft()
+                    oldest_ind2 = self.timestep_visited2.index(oldest2)
+                    self.timestep_visited2.remove(oldest2)
+                    self.ListOfDataDict2.pop(oldest_ind2)
+                self.timestep_visited2.append(self.TimeStep.value)
+                self.ListOfDataDict2.append(self.DataDict2)
+                self.timestep_queue2.append(self.TimeStep.value)
+
+            # Compute shock_loc for sim2 if not already cached
+            if 'shock_loc' not in self.DataDict2:
+                try:
+                    jstart2 = int(min(10*self.DataDict2['c_omp']/self.DataDict2['istep'],
+                                      self.DataDict2['dens'][0,:,:].shape[1]))
+                    xaxis2 = np.arange(self.DataDict2['dens'][0,:,:].shape[1]) / self.DataDict2['c_omp'] * self.DataDict2['istep']
+                    dens_row2 = self.DataDict2['dens'][0,:,:][self.DataDict2['dens'][0,:,:].shape[0]//2, jstart2:]
+                    ishock2 = np.where(dens_row2 >= max(dens_row2) * .5)[0][-1]
+                    self.DataDict2['shock_loc'] = xaxis2[ishock2]
+                except Exception:
+                    self.DataDict2['shock_loc'] = 0.0
+
+            self.cpu_x_locs2 = np.cumsum(self.DataDict2['mx'] - 5) / self.DataDict2['c_omp']
+            self.cpu_y_locs2 = np.cumsum(self.DataDict2['my'] - 5) / self.DataDict2['c_omp']
+        else:
+            # No second directory: rows 1+ fall back to sim1 data
+            self.DataDict2 = self.DataDict
+            self.cpu_x_locs2 = self.cpu_x_locs
+            self.cpu_y_locs2 = self.cpu_y_locs
+
+        # Now that the DataDicts are created, iterate over all the subplots and
         # load the data into them:
         for i in range(self.MainParamDict['NumOfRows']):
             for j in range(self.MainParamDict['NumOfCols']):
