@@ -5,6 +5,15 @@ import pathlib
 import warnings
 import argparse
 
+# Per-particle datasets must stay arrays even when there happens to be exactly
+# one particle (e.g. a single test-particle orbit run) -- collapsing them to a
+# bare Python scalar breaks any downstream code that calls len()/min()/max()
+# or indexes into them (see load_dataset below).
+_PARTICLE_DATASET_NAMES = {
+    'xi', 'yi', 'zi', 'ui', 'vi', 'wi', 'chi', 'indi', 'proci',
+    'xe', 'ye', 'ze', 'ue', 've', 'we', 'che', 'inde', 'proce',
+}
+
 # =============================================================================
 def __detect_tristan_data_version(file: h5py.File) -> int:
     """Determine which version of Tristan the data file belongs to.
@@ -422,8 +431,10 @@ def load_dataset(file_path: str | pathlib.Path, dataset_name: str, dataset_slice
             # If the data is from Tristan v2 then perform whatever handling is needed.
             loaded_data = __handle_tristan_v2(file_path, file, dataset_name, dataset_slice, cli_args)
 
-        # Reduce to a scalar if the array is size 1
-        if loaded_data.size == 1 and dataset_name != 'xsl':
+        # Reduce to a scalar if the array is size 1 -- but never for
+        # per-particle datasets, which must stay arrays regardless of
+        # particle count (see _PARTICLE_DATASET_NAMES above).
+        if loaded_data.size == 1 and dataset_name != 'xsl' and dataset_name not in _PARTICLE_DATASET_NAMES:
             return loaded_data.item()
 
         return loaded_data
