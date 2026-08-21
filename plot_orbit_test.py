@@ -82,7 +82,10 @@ def main():
 
     have_center = args.mx0 is not None and args.my0 is not None
     if have_center:
-        x0, y0 = args.mx0 / 2.0, args.my0 / 2.0
+        # +0.5: matches x0_ext/y0_ext in user_orbit_test.F90 -- the blob density
+        # is built on the FFT grid (global cells [3, mx0-2]), whose true centre
+        # is mx0/2+0.5, not mx0/2. Must stay in sync with that file's centring.
+        x0, y0 = args.mx0 / 2.0 + 0.5, args.my0 / 2.0 + 0.5
         r = np.sqrt((x - x0)**2 + (y - y0)**2)
 
     ncols = 3 if have_center else 2
