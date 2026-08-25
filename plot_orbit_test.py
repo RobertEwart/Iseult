@@ -9,29 +9,23 @@ Usage:
     python3 plot_orbit_test.py --dir /path/to/output --mx0 260 --my0 260
 
 If --mx0/--my0 are given, positions are also re-centred on the assumed box
-centre (mx0/2+0.5, my0/2+0.5) so it can be compared against the two centres
-estimated directly from the trajectory (see below); if omitted, only those
-trajectory-based estimates are shown.
+centre (mx0/2+0.5, my0/2+0.5) so it can be compared against the ellipse-fit
+centre estimated directly from the trajectory (see below); if omitted, only
+the trajectory-based estimate is shown.
 
-WHY THREE DIFFERENT "CENTRES":
+WHY TWO DIFFERENT "CENTRES":
 A naive r(t) = |pos - assumed_box_centre| is only as good as that assumed
 centre. If it's off by even a fraction of a cell (e.g. a stale +0.5
 convention, or wrong mx0/my0), a perfectly circular orbit will show up as
 "elliptical" -- that's a measurement artifact, not real physics. This script
-now also estimates the centre two other ways, straight from the (x, y)
-trajectory, with no assumption about the box at all:
-  - centroid: the mean position over the loaded frames. Cheap, and exact
-    for a circular orbit, but for a genuinely elliptical Kepler orbit the
-    time-averaged position is NOT the ellipse's geometric centre (it's
-    offset towards apoapsis) -- so treat this as a rough cross-check, not
-    ground truth, once ecc is not small.
-  - ellipse fit: a proper direct least-squares conic fit (Fitzgibbon et al.
-    1996) to the (x, y) points, which recovers the ellipse's true centre,
-    semi-major/minor axes and eccentricity without assuming *any* centre
-    up front. This is the most trustworthy of the three, provided the data
-    covers a decent angular arc of the orbit (a short arc is a genuinely
-    under-determined fit -- the script reports the angular coverage and
-    warns when the fit is likely unreliable).
+also estimates the centre straight from the (x, y) trajectory, with no
+assumption about the box at all, via a proper direct least-squares conic fit
+(Fitzgibbon et al. 1996) to the (x, y) points, which recovers the ellipse's
+true centre, semi-major/minor axes and eccentricity without assuming *any*
+centre up front. This is the most trustworthy of the two, provided the data
+covers a decent angular arc of the orbit (a short arc is a genuinely
+under-determined fit -- the script reports the angular coverage and warns
+when the fit is likely unreliable).
 
 If the assumed box centre disagrees with the fitted centre by more than a
 fraction of a cell, that's a strong sign the "eccentricity" you're seeing is
@@ -163,10 +157,10 @@ def fit_ellipse(x, y):
 def angular_coverage_deg(x, y, cx, cy):
     """How many degrees of azimuth around (cx, cy) the trajectory spans.
 
-    Used to flag ellipse fits (and, to a lesser extent, centroid estimates)
-    that are based on too short an arc to be trustworthy -- a short arc is
-    consistent with a wide range of different ellipses, so the fit can look
-    confident while being numerically underdetermined.
+    Used to flag ellipse fits that are based on too short an arc to be
+    trustworthy -- a short arc is consistent with a wide range of different
+    ellipses, so the fit can look confident while being numerically
+    underdetermined.
     """
     theta = np.unwrap(np.arctan2(y - cy, x - cx))
     return float(np.degrees(theta.max() - theta.min()))
@@ -202,13 +196,13 @@ def main():
         # is mx0/2+0.5, not mx0/2. Must stay in sync with that file's centring.
         centers['assumed box centre'] = (args.mx0 / 2.0 + 0.5, args.my0 / 2.0 + 0.5)
 
-    centers['centroid (mean position)'] = (float(x.mean()), float(y.mean()))
-
     ell = fit_ellipse(x, y)
-    coverage_ref = centers.get('assumed box centre', centers['centroid (mean position)'])
-    coverage = angular_coverage_deg(x, y, *coverage_ref)
     if ell is not None:
         centers['ellipse fit'] = ell['center']
+
+    coverage_ref = centers.get('assumed box centre',
+                                centers.get('ellipse fit', (float(x.mean()), float(y.mean()))))
+    coverage = angular_coverage_deg(x, y, *coverage_ref)
 
     eccs = {}
     r_curves = {}
@@ -245,8 +239,7 @@ def main():
     ax = axes[0, 0]
     sc = ax.scatter(x, y, c=lap, cmap='viridis', s=10, zorder=3)
     ax.plot(x, y, lw=0.5, alpha=0.5, color='k')
-    markers = {'assumed box centre': ('r', '+'), 'centroid (mean position)': ('b', 'x'),
-               'ellipse fit': ('g', '*')}
+    markers = {'assumed box centre': ('r', '+'), 'ellipse fit': ('g', '*')}
     for name, (cx, cy) in centers.items():
         color, marker = markers[name]
         ax.scatter([cx], [cy], marker=marker, color=color, s=120, label=name, zorder=4)
@@ -294,8 +287,8 @@ def main():
     ax.axis('off')
     lines = [f"frames: {len(lap)}   trajectory angular coverage: {coverage:.1f} deg"]
     if coverage < 300:
-        lines.append("  ^ WARNING: less than a full orbit -- centroid and especially")
-        lines.append("    the ellipse fit are unreliable/underdetermined below ~300 deg.")
+        lines.append("  ^ WARNING: less than a full orbit -- the ellipse fit is")
+        lines.append("    unreliable/underdetermined below ~300 deg.")
     lines.append("")
     for name, (cx, cy) in centers.items():
         lines.append(f"{name:24s}: ({cx:8.3f}, {cy:8.3f})   ecc = {eccs[name]:.4f}")
