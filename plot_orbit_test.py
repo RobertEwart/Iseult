@@ -215,7 +215,13 @@ def main():
     for name, (cx, cy) in centers.items():
         r = np.hypot(x - cx, y - cy)
         r_curves[name] = r
-        eccs[name] = (r.max() - r.min()) / (r.max() + r.min())
+        if name == 'ellipse fit':
+            # (r.max()-r.min())/(r.max()+r.min()) is only == eccentricity when r is
+            # measured from a focus. The ellipse-fit centre is the geometric centre,
+            # not a focus, so use the axis-ratio formula from the fit itself instead.
+            eccs[name] = ell['ecc']
+        else:
+            eccs[name] = (r.max() - r.min()) / (r.max() + r.min())
 
     if have_box and ell is not None:
         dx = ell['center'][0] - centers['assumed box centre'][0]
