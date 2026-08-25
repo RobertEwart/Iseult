@@ -224,6 +224,15 @@ def main():
     else:
         center_offset = None
 
+    print(f"trajectory angular coverage: {coverage:.1f} deg")
+    for name, (cx, cy) in centers.items():
+        print(f"  {name:24s}: centre=({cx:8.3f}, {cy:8.3f})   ecc = {eccs[name]:.4f}")
+    if ell is not None:
+        print(f"  ellipse fit: a={ell['a']:.4f}  b={ell['b']:.4f}  "
+              f"b/a={ell['b']/ell['a']:.4f}  angle={np.degrees(ell['angle']) % 180:.1f} deg")
+    else:
+        print("  ellipse fit: FAILED (too few/collinear points)")
+
     ncols = 3
     fig, axes = plt.subplots(2, ncols, figsize=(5 * ncols, 8))
 
