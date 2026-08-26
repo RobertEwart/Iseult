@@ -38,6 +38,14 @@ class PhasePanel:
                        'E_max': 200.0,
                        'set_p_min': False,
                        'set_p_max': False,
+                       'x_min': 0.0,
+                       'x_max': 100.0,
+                       'set_x_min': False,
+                       'set_x_max': False,
+                       'y_pos_min': 0.0,
+                       'y_pos_max': 100.0,
+                       'set_y_pos_min': False,
+                       'set_y_pos_max': False,
                        'spatial_x': True,
                        'spatial_y': False,
                        'symmetric': False,
@@ -158,8 +166,14 @@ class PhasePanel:
         Need_Energy = Need_Energy or self.GetPlotParam('set_E_min')
         Need_Energy = Need_Energy or self.GetPlotParam('set_E_max')
 
+        # We only need the y position of the particles if we are slicing in y
+        Need_Ypos = self.GetPlotParam('set_y_pos_min')
+        Need_Ypos = Need_Ypos or self.GetPlotParam('set_y_pos_max')
+
         if self.GetPlotParam('prtl_type') == 0:
             self.arrs_needed.append('xi')
+            if Need_Ypos:
+                self.arrs_needed.append('yi')
             if self.GetPlotParam('weighted'):
                 self.arrs_needed.append('chi')
             if Need_Energy:
@@ -175,6 +189,8 @@ class PhasePanel:
 
         if self.GetPlotParam('prtl_type') == 1:
             self.arrs_needed.append('xe')
+            if Need_Ypos:
+                self.arrs_needed.append('ye')
             if self.GetPlotParam('weighted'):
                 self.arrs_needed.append('che')
             if Need_Energy:
@@ -188,6 +204,88 @@ class PhasePanel:
             elif self.GetPlotParam('mom_dim') == 2:
                 self.arrs_needed.append('we')
         return self.arrs_needed
+
+    def SetSpatialLimits(self):
+        ''' A helper function that sets the x range of the histogram. By default
+        it is the whole box, but the user can restrict it to a slice of x. Any
+        particle outside of [xmin, xmax] is dropped by the histogram.'''
+        self.xmin = 0
+        self.xmax = self.FigWrap.LoadKey('bx').shape[2]/self.c_omp*self.istep
+
+        if self.GetPlotParam('set_x_min'):
+            self.xmin = self.GetPlotParam('x_min')
+        if self.GetPlotParam('set_x_max'):
+            self.xmax = self.GetPlotParam('x_max')
+
+        self.xmax = self.xmax if (self.xmax != self.xmin) else self.xmin + 1
+
+    def SelectPrtls(self, energy = None, nan_ind = None):
+        ''' A helper function that returns a boolean array flagging the particles
+        that should be counted, or None if we are keeping all of them. The x
+        slice is handled by the limits of the histogram, but the energy cut and
+        the y slice have to be done by hand.'''
+        inRange = None
+
+        if energy is not None:
+            # Find the particles that fall in our energy range
+            if self.GetPlotParam('set_E_min'):
+                inRange = energy >= self.GetPlotParam('E_min')
+                if self.GetPlotParam('set_E_max'):
+                    inRange *= energy <= self.GetPlotParam('E_max')
+            elif self.GetPlotParam('set_E_max'):
+                inRange = energy <= self.GetPlotParam('E_max')
+
+        if self.GetPlotParam('set_y_pos_min') or self.GetPlotParam('set_y_pos_max'):
+            # Find the particles that fall in our slice of y
+            if self.GetPlotParam('prtl_type') == 0:
+                y_pos = self.FigWrap.LoadKey('yi')/self.c_omp
+            else:
+                y_pos = self.FigWrap.LoadKey('ye')/self.c_omp
+
+            inSlice = np.ones(len(y_pos), dtype = bool)
+            if self.GetPlotParam('set_y_pos_min'):
+                inSlice *= y_pos >= self.GetPlotParam('y_pos_min')
+            if self.GetPlotParam('set_y_pos_max'):
+                inSlice *= y_pos <= self.GetPlotParam('y_pos_max')
+
+            inRange = inSlice if inRange is None else inRange*inSlice
+
+        # Some of the boosted values become NaN, throw them out as well.
+        if inRange is not None and nan_ind is not None:
+            inRange *= np.logical_not(nan_ind)
+
+        return inRange
+
+    def SetMomentumLimits(self, inRange = None):
+        ''' A helper function that autoscales the momentum axis. Only the
+        particles that actually make it into the histogram should set the
+        range.'''
+        p_values = self.y_values if inRange is None else self.y_values[inRange]
+
+        if self.GetPlotParam('set_x_min') or self.GetPlotParam('set_x_max'):
+            x_values = self.x_values if inRange is None else self.x_values[inRange]
+            p_values = p_values[(x_values >= self.xmin) * (x_values <= self.xmax)]
+
+        self.pmin = 0.0 if len(p_values) == 0 else min(p_values)
+        self.pmax = 0.0 if len(p_values) == 0 else max(p_values)
+        self.pmax = self.pmax if (self.pmax != self.pmin) else self.pmin + 1
+
+    def MakeHist(self, inRange = None):
+        ''' A helper function that bins the particles that survived the cuts.'''
+        x_values = self.x_values if inRange is None else self.x_values[inRange]
+        p_values = self.y_values if inRange is None else self.y_values[inRange]
+
+        if self.GetPlotParam('weighted'):
+            weights = self.weights if inRange is None else self.weights[inRange]
+            hist = Fast2DWeightedHist(p_values, x_values, weights,
+                self.pmin, self.pmax, self.GetPlotParam('pbins'),
+                self.xmin, self.xmax, self.GetPlotParam('xbins'))
+        else:
+            hist = Fast2DHist(p_values, x_values,
+                self.pmin, self.pmax, self.GetPlotParam('pbins'),
+                self.xmin, self.xmax, self.GetPlotParam('xbins'))
+
+        return hist, [self.pmin, self.pmax], [self.xmin, self.xmax]
 
     def LoadData(self):
         ''' A helper function that checks if the histogram has
@@ -206,6 +304,18 @@ class PhasePanel:
 
         if self.GetPlotParam('set_E_max'):
             self.key_name += 'Emax_'+str(self.GetPlotParam('E_max')) + '_'
+
+        if self.GetPlotParam('set_x_min'):
+            self.key_name += 'xmin_'+str(self.GetPlotParam('x_min')) + '_'
+
+        if self.GetPlotParam('set_x_max'):
+            self.key_name += 'xmax_'+str(self.GetPlotParam('x_max')) + '_'
+
+        if self.GetPlotParam('set_y_pos_min'):
+            self.key_name += 'ymin_'+str(self.GetPlotParam('y_pos_min')) + '_'
+
+        if self.GetPlotParam('set_y_pos_max'):
+            self.key_name += 'ymax_'+str(self.GetPlotParam('y_pos_max')) + '_'
 
         if self.parent.MainParamDict['DoLorentzBoost'] and np.abs(self.parent.MainParamDict['GammaBoost'])>1E-8:
             self.key_name += 'boosted_'+ str(self.parent.MainParamDict['GammaBoost'])+'_'
@@ -226,9 +336,7 @@ class PhasePanel:
             self.y_values = None
 
             # x_min & x_max before boostin'
-            self.xmin = 0
-            self.xmax = self.FigWrap.LoadKey('bx').shape[2]/self.c_omp*self.istep
-            self.xmax = self.xmax if (self.xmax != self.xmin) else self.xmin + 1
+            self.SetSpatialLimits()
 
             # First calculate beta and gamma
             if self.parent.MainParamDict['GammaBoost'] >=1:
@@ -304,11 +412,7 @@ class PhasePanel:
             nan_ind = np.isnan(self.y_values)
 
 
-            self.pmin = 0.0 if len(self.y_values) == 0 else min(self.y_values)
-            self.pmax = 0.0 if len(self.y_values) == 0 else max(self.y_values)
-            self.pmax = self.pmax if (self.pmax != self.pmin) else self.pmin + 1
-
-
+            energy = None
             if self.GetPlotParam('set_E_min') or self.GetPlotParam('set_E_max'):
                 # We need to calculate the total energy in units m_e c^2
                 if self.GetPlotParam('prtl_type')==0:
@@ -316,25 +420,11 @@ class PhasePanel:
                 else:
                     energy = np.copy(gamma_ds)
 
-                # Now find the particles that fall in our range
-                if self.GetPlotParam('set_E_min'):
-                    inRange = energy >= self.FigWrap.GetPlotParam('E_min')
-                    if self.GetPlotParam('set_E_max'):
-                        inRange *= energy <= self.GetPlotParam('E_max')
-                elif self.GetPlotParam('set_E_max'):
-                    inRange = energy <= self.GetPlotParam('E_max')
-                inRange *= np.logical_not(nan_ind)
-                if self.GetPlotParam('weighted'):
-                    self.hist2d = Fast2DWeightedHist(self.y_values[inRange], self.x_values[inRange], self.weights[inRange], self.pmin,self.pmax, self.GetPlotParam('pbins'), self.xmin,self.xmax, self.GetPlotParam('xbins')), [self.pmin, self.pmax], [self.xmin, self.xmax]
+            inRange = self.SelectPrtls(energy, nan_ind)
 
-                else:
-                    self.hist2d = Fast2DHist(self.y_values[inRange], self.x_values[inRange], self.pmin,self.pmax, self.GetPlotParam('pbins'), self.xmin,self.xmax, self.GetPlotParam('xbins')), [self.pmin, self.pmax], [self.xmin, self.xmax]
+            self.SetMomentumLimits(inRange)
+            self.hist2d = self.MakeHist(inRange)
 
-            else:
-                if self.GetPlotParam('weighted'):
-                    self.hist2d = Fast2DWeightedHist(self.y_values, self.x_values, self.weights, self.pmin,self.pmax, self.GetPlotParam('pbins'), self.xmin,self.xmax, self.GetPlotParam('xbins')), [self.pmin, self.pmax], [self.xmin, self.xmax]
-                else:
-                    self.hist2d = Fast2DHist(self.y_values, self.x_values, self.pmin,self.pmax, self.GetPlotParam('pbins'), self.xmin,self.xmax, self.GetPlotParam('xbins')), [self.pmin, self.pmax], [self.xmin, self.xmax]
             try:
                 if self.GetPlotParam('masked'):
                     zval = ma.masked_array(self.hist2d[0])
@@ -385,14 +475,9 @@ class PhasePanel:
                 if self.GetPlotParam('mom_dim') == 2:
                     self.y_values = self.FigWrap.LoadKey('we')
 
-            self.pmin = 0.0 if len(self.y_values) == 0 else min(self.y_values)
-            self.pmax = 0.0 if len(self.y_values) == 0 else max(self.y_values)
-            self.pmax = self.pmax if (self.pmax != self.pmin) else self.pmin + 1
+            self.SetSpatialLimits()
 
-            self.xmin = 0
-            self.xmax = self.FigWrap.LoadKey('bx').shape[2]/self.c_omp*self.istep
-            self.xmax = self.xmax if (self.xmax != self.xmin) else self.xmin + 1
-
+            energy = None
             if self.GetPlotParam('set_E_min') or self.GetPlotParam('set_E_max'):
                 # We need to calculate the total energy of each particle in
                 # units m_e c^2
@@ -405,7 +490,6 @@ class PhasePanel:
                     w = self.FigWrap.LoadKey('wi')
 
                 if self.GetPlotParam('prtl_type') == 1: #electons
-                    self.x_values = self.FigWrap.LoadKey('xe')/self.c_omp
                     u = self.FigWrap.LoadKey('ue')
                     v = self.FigWrap.LoadKey('ve')
                     w = self.FigWrap.LoadKey('we')
@@ -417,22 +501,10 @@ class PhasePanel:
                 if self.GetPlotParam('prtl_type')==0:
                     energy *= self.FigWrap.LoadKey('mi')/self.FigWrap.LoadKey('me')
 
-                # Now find the particles that fall in our range
-                if self.GetPlotParam('set_E_min'):
-                    inRange = energy >= self.FigWrap.GetPlotParam('E_min')
-                    if self.GetPlotParam('set_E_max'):
-                        inRange *= energy <= self.GetPlotParam('E_max')
-                elif self.GetPlotParam('set_E_max'):
-                    inRange = energy <= self.GetPlotParam('E_max')
-                if self.GetPlotParam('weighted'):
-                    self.hist2d = Fast2DWeightedHist(self.y_values[inRange], self.x_values[inRange], self.weights[inRange], self.pmin,self.pmax, self.GetPlotParam('pbins'), self.xmin,self.xmax, self.GetPlotParam('xbins')), [self.pmin, self.pmax], [self.xmin, self.xmax]
-                else:
-                    self.hist2d = Fast2DHist(self.y_values[inRange], self.x_values[inRange], self.pmin,self.pmax, self.GetPlotParam('pbins'), self.xmin,self.xmax, self.GetPlotParam('xbins')), [self.pmin, self.pmax], [self.xmin, self.xmax]
-            else:
-                if self.GetPlotParam('weighted'):
-                    self.hist2d = Fast2DWeightedHist(self.y_values, self.x_values, self.weights, self.pmin,self.pmax, self.GetPlotParam('pbins'), self.xmin,self.xmax, self.GetPlotParam('xbins')), [self.pmin, self.pmax], [self.xmin, self.xmax]
-                else:
-                    self.hist2d = Fast2DHist(self.y_values, self.x_values, self.pmin,self.pmax, self.GetPlotParam('pbins'), self.xmin,self.xmax, self.GetPlotParam('xbins')), [self.pmin, self.pmax], [self.xmin, self.xmax]
+            inRange = self.SelectPrtls(energy)
+
+            self.SetMomentumLimits(inRange)
+            self.hist2d = self.MakeHist(inRange)
 
             try:
                 if self.GetPlotParam('masked'):
@@ -912,6 +984,68 @@ class PhaseSettings(Tk.Toplevel):
         self.EmaxEnter = ttk.Entry(frm, textvariable=self.Emax, width=7)
         self.EmaxEnter.grid(row = 8, column = 3)
 
+        # Now the x lim. Unlike the y_axis lims, these throw away the particles
+        # outside of the range instead of just changing the view.
+        self.setXminVar = Tk.IntVar()
+        self.setXminVar.set(self.parent.GetPlotParam('set_x_min'))
+        self.setXminVar.trace('w', self.setXminChanged)
+
+        self.setXmaxVar = Tk.IntVar()
+        self.setXmaxVar.set(self.parent.GetPlotParam('set_x_max'))
+        self.setXmaxVar.trace('w', self.setXmaxChanged)
+
+
+        self.Xmin = Tk.StringVar()
+        self.Xmin.set(str(self.parent.GetPlotParam('x_min')))
+
+        self.Xmax = Tk.StringVar()
+        self.Xmax.set(str(self.parent.GetPlotParam('x_max')))
+
+
+        cb = ttk.Checkbutton(frm, text ='Set x_min (c/omp)',
+                        variable = self.setXminVar)
+        cb.grid(row = 9, column = 2, sticky = Tk.W)
+        self.XminEnter = ttk.Entry(frm, textvariable=self.Xmin, width=7)
+        self.XminEnter.grid(row = 9, column = 3)
+
+        cb = ttk.Checkbutton(frm, text ='Set x_max (c/omp)',
+                        variable = self.setXmaxVar)
+        cb.grid(row = 10, column = 2, sticky = Tk.W)
+
+        self.XmaxEnter = ttk.Entry(frm, textvariable=self.Xmax, width=7)
+        self.XmaxEnter.grid(row = 10, column = 3)
+
+        # Now the y lim. These throw away every particle that sits outside of
+        # the slice of y.
+        self.setYminVar = Tk.IntVar()
+        self.setYminVar.set(self.parent.GetPlotParam('set_y_pos_min'))
+        self.setYminVar.trace('w', self.setYminChanged)
+
+        self.setYmaxVar = Tk.IntVar()
+        self.setYmaxVar.set(self.parent.GetPlotParam('set_y_pos_max'))
+        self.setYmaxVar.trace('w', self.setYmaxChanged)
+
+
+        self.Ymin = Tk.StringVar()
+        self.Ymin.set(str(self.parent.GetPlotParam('y_pos_min')))
+
+        self.Ymax = Tk.StringVar()
+        self.Ymax.set(str(self.parent.GetPlotParam('y_pos_max')))
+
+
+        cb = ttk.Checkbutton(frm, text ='Set y_min (c/omp)',
+                        variable = self.setYminVar)
+        cb.grid(row = 11, column = 2, sticky = Tk.W)
+        self.YminEnter = ttk.Entry(frm, textvariable=self.Ymin, width=7)
+        self.YminEnter.grid(row = 11, column = 3)
+
+        cb = ttk.Checkbutton(frm, text ='Set y_max (c/omp)',
+                        variable = self.setYmaxVar)
+        cb.grid(row = 12, column = 2, sticky = Tk.W)
+
+        self.YmaxEnter = ttk.Entry(frm, textvariable=self.Ymax, width=7)
+        self.YmaxEnter.grid(row = 12, column = 3)
+
 
     def ShockVarHandler(self, *args):
         if self.parent.GetPlotParam('show_shock')== self.ShockVar.get():
@@ -1006,15 +1140,39 @@ class PhaseSettings(Tk.Toplevel):
         else:
             self.parent.SetPlotParam('set_E_max', self.setEmaxVar.get())
 
+    def setXminChanged(self, *args):
+        if self.setXminVar.get() == self.parent.GetPlotParam('set_x_min'):
+            pass
+        else:
+            self.parent.SetPlotParam('set_x_min', self.setXminVar.get())
+
+    def setXmaxChanged(self, *args):
+        if self.setXmaxVar.get() == self.parent.GetPlotParam('set_x_max'):
+            pass
+        else:
+            self.parent.SetPlotParam('set_x_max', self.setXmaxVar.get())
+
+    def setYminChanged(self, *args):
+        if self.setYminVar.get() == self.parent.GetPlotParam('set_y_pos_min'):
+            pass
+        else:
+            self.parent.SetPlotParam('set_y_pos_min', self.setYminVar.get())
+
+    def setYmaxChanged(self, *args):
+        if self.setYmaxVar.get() == self.parent.GetPlotParam('set_y_pos_max'):
+            pass
+        else:
+            self.parent.SetPlotParam('set_y_pos_max', self.setYmaxVar.get())
+
 
     def TxtEnter(self, e):
         self.FieldsCallback()
 
     def FieldsCallback(self):
         #### First set the Float Values
-        tkvarLimList = [self.Vmin, self.Vmax, self.Pmin, self.Pmax, self.Emin, self.Emax]
-        plot_param_List = ['v_min', 'v_max', 'p_min', 'p_max', 'E_min', 'E_max']
-        tkvarSetList = [self.setVminVar, self.setVmaxVar, self.setPminVar, self.setPmaxVar, self.setEminVar, self.setEmaxVar]
+        tkvarLimList = [self.Vmin, self.Vmax, self.Pmin, self.Pmax, self.Emin, self.Emax, self.Xmin, self.Xmax, self.Ymin, self.Ymax]
+        plot_param_List = ['v_min', 'v_max', 'p_min', 'p_max', 'E_min', 'E_max', 'x_min', 'x_max', 'y_pos_min', 'y_pos_max']
+        tkvarSetList = [self.setVminVar, self.setVmaxVar, self.setPminVar, self.setPmaxVar, self.setEminVar, self.setEmaxVar, self.setXminVar, self.setXmaxVar, self.setYminVar, self.setYmaxVar]
         to_reload = False
         for j in range(len(tkvarLimList)):
             try:
